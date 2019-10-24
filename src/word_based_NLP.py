@@ -39,10 +39,10 @@ class NN(nn.Module):
         self.seq_size= seq_size
         self.embedding= nn.Embedding(self.num_chars, 100)
         self.fc1 = nn.Sequential(
-            nn.Linear(self.seq_size*self.num_chars*100, 500),
+            nn.Linear(self.seq_size*self.num_chars*100, 250),
             nn.ReLU()
         )
-        self.fc2 = nn.Linear(500, self.num_chars)
+        self.fc2 = nn.Linear(250, self.num_chars)
 
     # 定义前向传播过程，输入为inputs
     def forward(self, inputs):
