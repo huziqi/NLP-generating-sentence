@@ -7,9 +7,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import time
+from snownlp import SnowNLP
 
-output_path='/home/guohf/AI_tutorial/ch8/output_files/'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+char2index= dict()
 class Dataloader():
     def __init__(self):
         #path= tf.keras.utils.get_file('nietzsche.txt',
@@ -21,6 +22,7 @@ class Dataloader():
         self.char_indices= dict((c,i) for i, c in enumerate(self.chars))
         self.indices_char= dict((i,c) for i, c in enumerate(self.chars))
         self.text= [self.char_indices[c] for c in self.raw_text]
+        char2index=self.char_indices
 
     def get_batch(self, batch_size):
         first_word= []
@@ -30,6 +32,9 @@ class Dataloader():
             first_word.append(self.text[index:index+3])
             next_word.append(self.text[index+3])
         return np.array(first_word), np.array(next_word)
+
+    def get_index(self, char):
+        return self.char_indices[char]
 
 class NN(nn.Module):
     def __init__(self, num_chars, batch_size, seq_size):
@@ -71,48 +76,36 @@ class NN(nn.Module):
 dataloader = Dataloader()
 batch_size= 50
 seq_size= 3
-learning_rate= 0.001
-EPOCH= 5
-
 net = NN(len(dataloader.chars), batch_size, seq_size).to(device)
-criterion = nn.CrossEntropyLoss()  # 交叉熵损失函数，通常用于多分类问题上
-optimizer= optim.Adam(net.parameters(), lr= learning_rate)
 
 
-# 训练
-if __name__ == "__main__":
-    start_time= time.time()
-    for epoch in range(EPOCH):
-        sum_loss = 0.0
-        # 数据读取
-        inputs, labels = dataloader.get_batch(batch_size)
-
-        # 梯度清零
-        optimizer.zero_grad()
-
-        # forward + backward
-        outputs = net(inputs)
-        loss = criterion(outputs, torch.LongTensor(labels))
-        loss.backward()
-        optimizer.step()
-        end_time= time.time()
-        print('the %d epoch loss: %.03f, total running time: %.2f s'% (epoch, loss.item(),end_time-start_time))
-
-
-    #torch.save(net.state_dict(),'/home/guohf/AI_tutorial/ch8/model/oldman_wordbased_%d.pt'%EPOCH)
-    fout = open(output_path + str(EPOCH) + "_word_based_output.txt", "w")
-
-    X_, _=dataloader.get_batch(1)
-    for diversity in [0.2,0.5,1.0,1.2]:
-        X=X_
-        print("diversity %f:" % diversity)
-        fout.write("diversity %f:\n" % diversity)
-        for t in range(100):
-            y_pred = net.predict(X,diversity)
-            print(dataloader.indices_char[y_pred[0]], end='',flush=False)
-            print("shape of X:", np.shape(X))
-            X=np.concatenate([X[:,1:], np.expand_dims(y_pred, axis=1)], axis=-1)
-        print("/n")
-        fout.write("\n")
-    fout.close()
-
+print("Please enter three words:")
+inputs=input()
+X=[]
+sentence=[]
+for i in range(3):
+    sentence.append(inputs[i])
+    X.append(dataloader.get_index(inputs[i]))
+X = np.array(X)
+for t in range(10):
+    y_pred = net.predict(X,0.8)
+    #print(dataloader.indices_char[y_pred[0]], end='',flush=False)
+    X=np.concatenate([X[1:], y_pred], axis=-1)
+    sentence.append(dataloader.indices_char[y_pred[0]])
+print("自动生成的语句为: ", end='')
+for i in range(len(sentence)):
+    print(sentence[i],end='')
+# else:
+#     if input()=='v':
+#         net.load_state_dict(torch.load('/home/guohf/AI_tutorial/ch8/model/oldman_vocbased_50000.pt'))
+#         print("Please enter three vocabulrary:")
+#         inputs = input()
+#         X = []
+#         for i in range(3):
+#             X.append(char2index[inputs[i]])
+#         for t in range(10):
+#             y_pred = net.predict(X, 0.5)
+#             print(dataloader.indices_char[y_pred[0]], end='', flush=False)
+#             X = np.concatenate([X[:, 1:], np.expand_dims(y_pred, axis=1)], axis=-1)
+#     else:
+#         print("enter the wrong key, please enter 'w' or 'v'!")
