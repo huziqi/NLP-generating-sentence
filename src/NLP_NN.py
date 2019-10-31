@@ -1,5 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import numpy as np
 import tensorflow as tf
+import time
 
 tf.compat.v1.enable_eager_execution()
 
@@ -7,7 +10,7 @@ class Dataloader():
     def __init__(self):
         #path= tf.keras.utils.get_file('nietzsche.txt',
         #                             origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt')
-        path = '/home/guohf/old_man_and_sea.txt'
+        path = '/home/huziqi/old_man_and_sea.txt'
         with open(path, encoding='utf-8') as f:
             self.raw_text= f.read().lower()
         self.chars= sorted(list(set(self.raw_text)))
@@ -35,29 +38,30 @@ class NN(tf.keras.Model):
 
     def call(self, inputs):
         inputs= tf.one_hot(inputs, depth=self.num_chars)
-        print("shape of one-hot:", tf.shape(inputs))
+        #print("shape of one-hot:", tf.shape(inputs))
         x = self.embeded(inputs)
-        print("shape after embeding:", tf.shape(x))
+        #print("shape after embeding:", tf.shape(x))
         x = self.flatten_(x)
-        print("shape after flatten:", tf.shape(x))
+        #print("shape after flatten:", tf.shape(x))
         x=self.dense1(x)
-        print("shape after dense1:", tf.shape(x))
+        #print("shape after dense1:", tf.shape(x))
         output= self.dense2(x)
-        print("shape of outputs:", tf.shape(output))
+        #print("shape of outputs:", tf.shape(output))
         return output
 
     def predict(self, inputs, temperature=1.):
         batch_size = tf.shape(inputs)
         logits=self(inputs)
         prob= tf.nn.softmax(logits/ temperature).numpy()
-        print(prob)
+        #print(prob)
         return np.array([np.random.choice(self.num_chars, p=prob[0, :])])
 
 
-num_batches=5
+num_batches=100
 batch_size=50
 learning_rate=0.001
 print("start!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+start_time= time.time()
 
 data_loader=Dataloader()
 model=NN(len(data_loader.chars))
@@ -71,11 +75,13 @@ for batch_index in range(num_batches):
         #print("shape of y:", tf.shape(y))
         #print("shape of y_logit_pred:", tf.shape(y_logit_pred))
         loss= tf.losses.sparse_softmax_cross_entropy(labels=y, logits=y_logit_pred)
-        print("batch %d: loss %f" % (batch_index, loss.numpy()))
+        end_time = time.time()
+        print("batch %d: loss %f, totall time is: %.2f s" % (batch_index, loss.numpy(), end_time-start_time))
     grads= tape.gradient(loss, model.variables)
     optimizer.apply_gradients(grads_and_vars=zip(grads, model.variables))
 
-checkpoint.save('/home/guohf/AI_tutorial/ch8/model/model_nn_100000.ckpt')
+
+checkpoint.save('/home/huziqi/NLP-generating-sentence/model/model_nn_100000.ckpt')
 
 X_, _=data_loader.get_batch(1)
 for diversity in [0.2,0.5,1.0,1.2,1.5,2]:
@@ -83,7 +89,7 @@ for diversity in [0.2,0.5,1.0,1.2,1.5,2]:
     print("diversity %f:" % diversity)
     for t in range(100):
         y_pred= model.predict(X,diversity)
-        print(data_loader.indices_char[y_pred[0]], end='',flush=True)
+        print(data_loader.indices_char[y_pred[0]], end='')
         #print("shape of X:", X)
         X=np.concatenate([X[:,1:], np.expand_dims(y_pred, axis=1)], axis=-1)
     print("/n")
